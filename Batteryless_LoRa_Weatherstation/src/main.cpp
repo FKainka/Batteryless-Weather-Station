@@ -99,11 +99,11 @@ void setup()
     //Serial.begin(115200);
 
     pinMode(PIN_POWER, OUTPUT);
-    digitalWrite(PIN_POWER, LOW);
+    digitalWrite(PIN_POWER, HIGH);
     gpio_hold_en(PIN_POWER);
 
     pinMode(PIN_DEEP_SLEEP, OUTPUT);
-    digitalWrite(PIN_DEEP_SLEEP, LOW);
+    digitalWrite(PIN_DEEP_SLEEP, HIGH);
 
     esp_sleep_wakeup_cause_t wakeup_reason;
     wakeup_reason = esp_sleep_get_wakeup_cause();

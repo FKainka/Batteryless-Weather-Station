@@ -63,9 +63,9 @@ void setup()
 
   Serial.println("Power Watch begin\n");
 
-  pinMode(PIN_DEEP_SLEEP, INPUT_PULLUP);
-  pinMode(PIN_POWER, INPUT_PULLUP);
-  pinMode(PIN_POWER, INPUT_PULLUP);
+  pinMode(PIN_DEEP_SLEEP, INPUT_PULLDOWN);
+  pinMode(PIN_POWER, INPUT_PULLDOWN);
+
 
   meassurement_cause = 0b00001000; //trigger_init
   meassurement();
