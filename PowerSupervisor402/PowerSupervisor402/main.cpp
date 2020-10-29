@@ -71,19 +71,29 @@ Power pin toggle: say awaik?
 
 //#define MY_DEBUG
 
-
 #include "VccReader.cpp"
+#ifdef MY_DEBUG
+#include "Serial.cpp"
+#endif
 #include "msg_structs.c"
 
-#define BOARD_ON PORTA.OUT = 0b01110000 ; //PORTA.OUT |= PIN1_bm;
-#define BOARD_OFF PORTA.OUT = 0b00000110;
+#define BOARD_SET_DIR PORTA.DIR = 255; //PIN1_bm;	//OUTPUT PIN A1
+#define BOARD_ON PORTA.OUT = 255;//0b0100000 ; //PORTA.OUT |= PIN1_bm;
+#define BOARD_OFF PORTA.OUT = 0 ; //0b00100000;
 
 #define EXEC_TIME 5000
+#define SLEEP_TIME 30
+#define VOLTAGE_ON 3000
 
-volatile char mode = 0b00000000;
+#ifdef MY_DEBUG
 char buffer[50];			//mode	on   Off  //sleep duration s
-str_config config ={0x02,0b00000000,3500,3000,30};
+#endif
 
+
+ISR(RTC_CNT_vect)
+{
+	RTC.INTFLAGS = RTC_OVF_bm;        // Wake up from STANDBY. Just clear the flag (required) - the RTC overflow Event will handle the pulse
+}
 
 
 void rtcDisable(){
@@ -116,16 +126,18 @@ void setup(){
 	_PROTECTED_WRITE(CLKCTRL.MCLKCTRLA, CLKCTRL_CLKSEL_OSC20M_gc); 	/* Set the Main clock to internal 20MHz oscillator*/
 	_PROTECTED_WRITE(CLKCTRL.MCLKCTRLB, CLKCTRL_PDIV_32X_gc | CLKCTRL_PEN_bm);  	/* Set the Main clock division factor to 6X and keep the Main clock prescaler enabled. */
 	#endif
-	
 
-	PORTA.DIR |= PIN1_bm;	//OUTPUT PIN A1
-	BOARD_OFF; // Start Value =off
-	config.mode = 0;
+
 	
-	rtcEnable(config.deep_sleep_duration);
+	rtcEnable(SLEEP_TIME);
+	set_sleep_mode(SLEEP_MODE_STANDBY); // set power saving mode as STANDBY, not POWER DOWN
+	sleep_enable();                     // enable sleep mode
+	sei();                              // turn on interrupts
 	
 	initAdc();
-	readVoltage(); //read once beacause of faulty readings
+	readVoltage(); //read once because of faulty readings
+	
+	
 }
 
 
@@ -136,49 +148,50 @@ int main(void){
 	serial(57600);
 	sendString("\n\nSTART\n");
 	#endif
+	
+	//FOR some reason this musst be set her!
+	BOARD_SET_DIR
+	BOARD_OFF   // Start Value =off
+	
 	while (1)
 	{
 		volt = readVoltage();
 		
 		#ifdef MY_DEBUG
-		sprintf(buffer,"\nMode: %d Volt:%d\n", config.mode, volt);
+		sprintf(buffer,"V1:%d\n", volt);
 		sendString(buffer);
 		#endif
-
-
-		if (config.mode == 0){
-			if (volt >= config.hyst_on){
-				config.mode = 1;
-				BOARD_ON
-				_delay_ms(EXEC_TIME);  //5s
-				BOARD_OFF
-			}
-			else {
-				BOARD_OFF
-			}
-		}
-		else{
-			if (volt <= config.hyst_off){
-				config.mode = 0;
-				BOARD_OFF
-			}
-			else {
-				BOARD_ON
-				_delay_ms(EXEC_TIME);  //5s
-				BOARD_OFF
-			}
+		
+		if (volt > VOLTAGE_ON){
+			
+			BOARD_ON
+			
+			#ifdef MY_DEBUG
+			sprintf(buffer,"BOARD ON\n");
+			sendString(buffer);
+			#endif
+			
+			_delay_ms(EXEC_TIME);  //5s
+			BOARD_OFF
+			
+			#ifdef MY_DEBUG
+			sprintf(buffer,"BOARD OFF\n");
+			sendString(buffer);
+			#endif
+			
 		}
 		
 		#ifdef MY_DEBUG
-		sprintf(buffer,"\nMode: %d Volt:%d\n", config.mode, volt);
+		sprintf(buffer,"V2:%d\n", volt);
 		sendString(buffer);
+		_delay_ms(200);
 		#endif
-
+		
+		sleep_cpu();
 	}
-	
-	set_sleep_mode(SLEEP_MODE_PWR_DOWN);//SLEEP_MODE_PWR_DOWN); SLEEP_MODE_STANDBY//Setting Sleep Mode (Standby: RTC)
-	sleep_mode(); //GoTo Deep sleep
+
 }
+
 
 
 
