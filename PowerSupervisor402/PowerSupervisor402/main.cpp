@@ -82,8 +82,10 @@ Power pin toggle: say awaik?
 #define BOARD_OFF PORTA.OUT = 0 ; //0b00100000;
 
 #define EXEC_TIME 5000
-#define SLEEP_TIME 30
-#define VOLTAGE_ON 3000
+#define SLEEP_TIME 1800
+#define SLEEP_PRESCALE 60
+#define SLEEP_WAKEUPS 30
+#define VOLTAGE_ON 3500
 
 #ifdef MY_DEBUG
 char buffer[50];			//mode	on   Off  //sleep duration s
@@ -129,7 +131,7 @@ void setup(){
 
 
 	
-	rtcEnable(SLEEP_TIME);
+	rtcEnable(SLEEP_PRESCALE);
 	set_sleep_mode(SLEEP_MODE_STANDBY); // set power saving mode as STANDBY, not POWER DOWN
 	sleep_enable();                     // enable sleep mode
 	sei();                              // turn on interrupts
@@ -144,6 +146,7 @@ void setup(){
 int main(void){
 	setup();
 	uint16_t volt = 0;
+	uint8_t sleep_circles = 0;
 	#ifdef MY_DEBUG
 	serial(57600);
 	sendString("\n\nSTART\n");
@@ -155,38 +158,42 @@ int main(void){
 	
 	while (1)
 	{
-		volt = readVoltage();
-		
-		#ifdef MY_DEBUG
-		sprintf(buffer,"V1:%d\n", volt);
-		sendString(buffer);
-		#endif
-		
-		if (volt > VOLTAGE_ON){
-			
-			BOARD_ON
+		if (sleep_circles == 0){
+			sleep_circles = SLEEP_WAKEUPS;
+
+			volt = readVoltage();
 			
 			#ifdef MY_DEBUG
-			sprintf(buffer,"BOARD ON\n");
+			sprintf(buffer,"V1:%d\n", volt);
 			sendString(buffer);
 			#endif
 			
-			_delay_ms(EXEC_TIME);  //5s
-			BOARD_OFF
+			if (volt > VOLTAGE_ON){
+				
+				BOARD_ON
+				
+				#ifdef MY_DEBUG
+				sprintf(buffer,"BOARD ON\n");
+				sendString(buffer);
+				#endif
+				
+				_delay_ms(EXEC_TIME);  //5s
+				BOARD_OFF
+				
+				#ifdef MY_DEBUG
+				sprintf(buffer,"BOARD OFF\n");
+				sendString(buffer);
+				#endif
+				
+			}
 			
 			#ifdef MY_DEBUG
-			sprintf(buffer,"BOARD OFF\n");
+			sprintf(buffer,"V2:%d\n", volt);
 			sendString(buffer);
+			_delay_ms(200);
 			#endif
-			
 		}
-		
-		#ifdef MY_DEBUG
-		sprintf(buffer,"V2:%d\n", volt);
-		sendString(buffer);
-		_delay_ms(200);
-		#endif
-		
+		sleep_circles --;
 		sleep_cpu();
 	}
 
